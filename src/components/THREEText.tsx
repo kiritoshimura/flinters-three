@@ -1,3 +1,5 @@
+"use client";
+import { NextPage } from "next";
 import { useEffect, useState } from "react";
 import * as THREE from "three";
 import { FontLoader } from "three/examples/jsm/loaders/FontLoader.js";
@@ -14,18 +16,21 @@ type PropsType = {
   answer: string;
 };
 
+/** 生成するテキスト */
+const TEXT_POSITION = [0, 1, 10]; // 0番目は上書きするので意味がない
 /** 生成する火 */
 const FIRE_RADIUS = 0.3;
 const FIRE_HEIGHT = 1;
 const FIRE_PARTICLE_COUNT = 100;
 const FIRE_POSITION = [0, 0, 10];
+const FIRE_LIMIT_NUMBER = 1;
 /** 初期である火 */
 const FIRE_INIT_RADIUS = 0.3;
 const FIRE_INIT_HEIGHT = 1;
 const FIRE_INIT_PARTICLE_COUNT = 100;
 const FIRE_INIT_POSITION = [-5, 0, -5];
 const FIRE_INIT_INTERVAL = 2;
-const FIRE_INIT_LENGTH = 30;
+const FIRE_INIT_LENGTH = 0;
 const FIRE_INIT_POSITION_DIFF = 20;
 
 /** カメラの視野角 */
@@ -38,7 +43,7 @@ export const THREEText = ({ answer }: PropsType) => {
   const [texts, setTexts] = useState<
     Array<THREE.Mesh<
       TextGeometry,
-      THREE.MeshLambertMaterial,
+      THREE.MeshBasicMaterial,
       THREE.Object3DEventMap
     > | null>
   >([]);
@@ -62,7 +67,7 @@ export const THREEText = ({ answer }: PropsType) => {
 
     const mapTexts: Array<THREE.Mesh<
       TextGeometry,
-      THREE.MeshLambertMaterial,
+      THREE.MeshBasicMaterial,
       THREE.Object3DEventMap
     > | null> = [];
 
@@ -86,7 +91,11 @@ export const THREEText = ({ answer }: PropsType) => {
       const textMaterial = new THREE.MeshLambertMaterial({ color: "#ffffff" });
       const text = new THREE.Mesh(textGeometry, textMaterial);
       text.castShadow = true;
-      const textPosition = [(index - answer.length) * 2, 1, -5];
+      const textPosition = [
+        (index - answer.length) * 2,
+        TEXT_POSITION[1],
+        TEXT_POSITION[2],
+      ];
       text.position.set(textPosition[0], textPosition[1], textPosition[2]);
       // text.rotation.x = (-90 * Math.PI) / 180;
 
@@ -216,7 +225,7 @@ export const THREEText = ({ answer }: PropsType) => {
     world.addBody(groundBody); // 世界に追加
 
     // ** Mesh **
-    // 火
+    // マウスカーソルに追従する火
     const height = window.innerHeight;
     const geometry0 = new particleFire.Geometry(
       FIRE_RADIUS,
@@ -294,7 +303,7 @@ export const THREEText = ({ answer }: PropsType) => {
     const tick = () => {
       // fire
       const delta = clock.getDelta();
-      particleFireMesh0.material.update(delta);
+      // particleFireMesh0.material.update(delta);
       initParticleFireMeshs.forEach((initParticleFireMesh) => {
         initParticleFireMesh.material.update(delta);
       });
@@ -384,7 +393,7 @@ export const THREEText = ({ answer }: PropsType) => {
       scene.add(clickParticleFireMesh);
       particleFireMeshs.push(clickParticleFireMesh);
       // 10個以上の火がある場合は、一番古い火を削除する
-      if (particleFireMeshs.length > 10) {
+      if (particleFireMeshs.length > FIRE_LIMIT_NUMBER) {
         scene.remove(particleFireMeshs[0]);
         particleFireMeshs[0].material.dispose();
         particleFireMeshs[0].geometry.dispose();
@@ -401,8 +410,8 @@ export const THREEText = ({ answer }: PropsType) => {
       );
       scene.add(clickPointLight);
       firePointLights.push(clickPointLight);
-      // 10個以上の火がある場合は、一番古い火を削除する
-      if (firePointLights.length > 10) {
+      // FIRE_LIMIT_NUMBER個以上の火がある場合は、一番古い火を削除する
+      if (firePointLights.length > FIRE_LIMIT_NUMBER) {
         scene.remove(firePointLights[0]);
         firePointLights.splice(0, 1);
       }
@@ -423,7 +432,7 @@ export const THREEText = ({ answer }: PropsType) => {
       clickParticleFireBody.addShape(clickParticleFireShape); // 形状を追加
       world.addBody(clickParticleFireBody); // 世界に追加
       particleFireBodies.push(clickParticleFireBody);
-      if (particleFireBodies.length > 10) {
+      if (particleFireBodies.length > FIRE_LIMIT_NUMBER) {
         world.removeBody(particleFireBodies[0]);
         particleFireBodies.splice(0, 1);
       }
