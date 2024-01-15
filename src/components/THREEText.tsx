@@ -43,7 +43,7 @@ export const THREEText = ({ answer }: PropsType) => {
   const [texts, setTexts] = useState<
     Array<THREE.Mesh<
       TextGeometry,
-      THREE.MeshBasicMaterial,
+      THREE.MeshLambertMaterial,
       THREE.Object3DEventMap
     > | null>
   >([]);
@@ -67,7 +67,7 @@ export const THREEText = ({ answer }: PropsType) => {
 
     const mapTexts: Array<THREE.Mesh<
       TextGeometry,
-      THREE.MeshBasicMaterial,
+      THREE.MeshLambertMaterial,
       THREE.Object3DEventMap
     > | null> = [];
 
