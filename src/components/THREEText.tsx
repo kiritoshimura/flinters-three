@@ -29,15 +29,6 @@ const FIRE_MOUSE_RADIUS = 0.25;
 const FIRE_MOUSE_HEIGHT = 2;
 const FIRE_MOUSE_PARTICLE_COUNT = 150;
 const FIRE_MOUSE_POSITION = [0, 0, 10];
-const FIRE_MOUSE_LIMIT_NUMBER = 1;
-/** 初期である火 */
-const FIRE_INIT_RADIUS = 0.3;
-const FIRE_INIT_HEIGHT = 1;
-const FIRE_INIT_PARTICLE_COUNT = 100;
-const FIRE_INIT_POSITION = [-5, 0, -5];
-const FIRE_INIT_INTERVAL = 2;
-const FIRE_INIT_LENGTH = 0;
-const FIRE_INIT_POSITION_DIFF = 20;
 
 /** カメラの視野角 */
 const CAMERA_FOV = 35;
@@ -61,9 +52,6 @@ export const THREEText = ({ answer }: PropsType) => {
 
   /** 火の光源 */
   const firePointLights: Array<THREE.PointLight> = [];
-
-  /** 火の物理演算 */
-  const particleFireBodies: Array<CANNON.Body> = [];
 
   const fontLoader = async () => {
     const answerArray = answer.split("");
@@ -98,7 +86,7 @@ export const THREEText = ({ answer }: PropsType) => {
       const text = new THREE.Mesh(textGeometry, textMaterial);
       text.castShadow = true;
       const textPosition = [
-        (index - answer.length) * 2,
+        (index - answer.length - 2) * 2,
         TEXT_POSITION[1],
         TEXT_POSITION[2],
       ];
@@ -194,7 +182,7 @@ export const THREEText = ({ answer }: PropsType) => {
       antialias: true,
       alpha: true,
     });
-    renderer.setSize(sizes.width, sizes.height);
+    renderer.setSize(sizes.width - 1, sizes.height - 8);
     renderer.setPixelRatio(window.devicePixelRatio);
 
     // 平面
@@ -282,7 +270,7 @@ export const THREEText = ({ answer }: PropsType) => {
       if (fireNumber < fireNumberMax) {
         fireNumber += 1;
       }
-      particleFireMeshs.forEach((particleFireMesh, index) => {
+      particleFireMeshs.forEach((particleFireMesh) => {
         if (fireNumber >= fireNumberMax) {
           scene.remove(particleFireMesh);
           particleFireMesh.material.dispose();
@@ -305,7 +293,7 @@ export const THREEText = ({ answer }: PropsType) => {
         }
       });
 
-      firePointLights.forEach((firePointLight, index) => {
+      firePointLights.forEach((firePointLight) => {
         if (fireNumber >= fireNumberMax) {
           scene.remove(firePointLight);
         } else {
@@ -416,7 +404,7 @@ export const THREEText = ({ answer }: PropsType) => {
       sizes.height = window.innerHeight;
       camera.aspect = sizes.width / sizes.height;
       camera.updateProjectionMatrix();
-      renderer.setSize(sizes.width, sizes.height);
+      renderer.setSize(sizes.width - 1, sizes.height - 8);
       renderer.setPixelRatio(window.devicePixelRatio);
       // fire
       mouseParticleFireMesh.material.setPerspective(camera.fov, height);
