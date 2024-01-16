@@ -182,7 +182,7 @@ export const THREEText = ({ answer }: PropsType) => {
       antialias: true,
       alpha: true,
     });
-    renderer.setSize(sizes.width - 5, sizes.height - 10);
+    renderer.setSize(sizes.width - 5, sizes.height - 20);
     renderer.setPixelRatio(window.devicePixelRatio);
 
     // 平面
@@ -404,7 +404,7 @@ export const THREEText = ({ answer }: PropsType) => {
       sizes.height = window.innerHeight;
       camera.aspect = sizes.width / sizes.height;
       camera.updateProjectionMatrix();
-      renderer.setSize(sizes.width - 5, sizes.height - 10);
+      renderer.setSize(sizes.width - 5, sizes.height - 20);
       renderer.setPixelRatio(window.devicePixelRatio);
       // fire
       mouseParticleFireMesh.material.setPerspective(camera.fov, height);
