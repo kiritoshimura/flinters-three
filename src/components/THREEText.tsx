@@ -181,7 +181,7 @@ export const THREEText = ({ answer }: PropsType) => {
       antialias: true,
       alpha: true,
     });
-    renderer.setSize(sizes.width - 5, sizes.height - 20);
+    renderer.setSize(sizes.width - 5, sizes.height - 50);
     renderer.setPixelRatio(window.devicePixelRatio);
 
     // 平面
