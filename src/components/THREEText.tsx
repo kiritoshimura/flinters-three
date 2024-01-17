@@ -27,13 +27,12 @@ const FIRE_LIMIT_NUMBER = 1;
 /** マウスカーソルについてくる生成する火 */
 const FIRE_MOUSE_RADIUS = 0.25;
 const FIRE_MOUSE_HEIGHT = 2;
-const FIRE_MOUSE_PARTICLE_COUNT = 150;
+const FIRE_MOUSE_PARTICLE_COUNT = 100;
 const FIRE_MOUSE_POSITION = [0, 0, 10];
-
 /** カメラの視野角 */
 const CAMERA_FOV = 35;
 /** カメラの位置 */
-const CAMERA_POSITION = [0, 0, 30];
+const CAMERA_POSITION = [0, 0, 23];
 
 export const THREEText = ({ answer }: PropsType) => {
   let canvas: HTMLElement;
@@ -86,7 +85,7 @@ export const THREEText = ({ answer }: PropsType) => {
       const text = new THREE.Mesh(textGeometry, textMaterial);
       text.castShadow = true;
       const textPosition = [
-        (index - answer.length - 2) * 2,
+        (index - answer.length - 2.5) * 2,
         TEXT_POSITION[1],
         TEXT_POSITION[2],
       ];
