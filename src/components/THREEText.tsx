@@ -61,7 +61,19 @@ export const THREEText = ({ answer }: PropsType) => {
     > | null>
   >([]);
 
+  const [anniversaryTexts, setAnniversaryTexts] = useState<
+    Array<THREE.Mesh<
+      TextGeometry,
+      THREE.MeshLambertMaterial,
+      THREE.Object3DEventMap
+    > | null>
+  >([]);
+
   const [textBodies, setTextBodies] = useState<Array<CANNON.Body>>([]);
+
+  const [anniversaryTextBodies, setAnniversaryTextBodies] = useState<
+    Array<CANNON.Body>
+  >([]);
 
   /** クッリクした火のMesh */
   const particleFireMeshs: Array<THREE.Points<any, any>> = [];
@@ -86,7 +98,8 @@ export const THREEText = ({ answer }: PropsType) => {
   );
   let mouseUpTickCount = 0;
   let mouseUpTickCountKeep = 0;
-  let cameraZoomZCount = 0;
+  let clickCount = 0;
+  let isAnniversary = false;
 
   const fontLoader = async () => {
     const answerArray = answer.split("");
@@ -145,8 +158,60 @@ export const THREEText = ({ answer }: PropsType) => {
       mapTextBodies.push(textBody);
     });
 
+    const anivTexts: Array<THREE.Mesh<
+      TextGeometry,
+      THREE.MeshLambertMaterial,
+      THREE.Object3DEventMap
+    > | null> = [];
+
+    const anivTextBodies: Array<CANNON.Body> = [];
+
+    "10thAnniversary".split("").forEach((asw, index) => {
+      const textGeometry = new TextGeometry(asw, {
+        font: font,
+        size: 1.5,
+        height: 1,
+        curveSegments: 12,
+        bevelEnabled: true,
+        // 押し出し量
+        bevelThickness: 0.01,
+        bevelSize: 0.05,
+        bevelOffset: 0,
+        bevelSegments: 5,
+      });
+      textGeometry.center();
+
+      const textMaterial = new THREE.MeshLambertMaterial({ color: "#ffffff" });
+      const text = new THREE.Mesh(textGeometry, textMaterial);
+      text.castShadow = true;
+      const textPosition = [
+        (index - asw.length - TEXT_INTERVAL_X * 2) * 2,
+        TEXT_POSITION[1] + 50,
+        TEXT_POSITION[2],
+      ];
+      text.position.set(textPosition[0], textPosition[1], textPosition[2]);
+      text.name = `${index}-aniversary-text`;
+      anivTexts.push(text);
+
+      // 物理エンジンキューブ（文字）
+      const textShape = new CANNON.Box(new CANNON.Vec3(0.75, 1, 0.5));
+      const textBody = new CANNON.Body({
+        mass: 1, // 質量
+        position: new CANNON.Vec3(
+          textPosition[0],
+          textPosition[1] + 50,
+          textPosition[2]
+        ),
+      });
+      textBody.addShape(textShape); // 形状を追加
+      anivTextBodies.push(textBody);
+    });
+
     setTexts(mapTexts);
     setTextBodies(mapTextBodies);
+
+    setAnniversaryTexts(anivTexts);
+    setAnniversaryTextBodies(anivTextBodies);
   };
 
   useEffect(() => {
@@ -350,6 +415,22 @@ export const THREEText = ({ answer }: PropsType) => {
 
       window.requestAnimationFrame(tick);
 
+      // 30回以上押したら10th Anniversaryを表示する
+      if (!isAnniversary && clickCount === 30) {
+        isAnniversary = true;
+        //** Mesh **
+        //文字の追加
+        anniversaryTexts!.forEach((text) => {
+          scene.add(text!);
+        });
+
+        // -- 物理演算 --
+        // 文字の追加
+        anniversaryTextBodies!.forEach((textBody) => {
+          world.addBody(textBody); // 世界に追加
+        });
+      }
+
       if (textPointToPointConstraint !== null) {
         world.removeConstraint(textPointToPointConstraint);
         textPointToPointConstraint = null;
@@ -501,6 +582,7 @@ export const THREEText = ({ answer }: PropsType) => {
         }
       }
       isClick = false;
+      // }
 
       // 物理エンジンの計算 物理エンジンは毎秒60回更新されます
       world.step(1 / 60);
@@ -508,6 +590,11 @@ export const THREEText = ({ answer }: PropsType) => {
       texts!.forEach((text, index) => {
         text!.position.copy(textBodies[index].position as any);
         text!.quaternion.copy(textBodies[index].quaternion as any);
+      });
+
+      anniversaryTexts!.forEach((text, index) => {
+        text!.position.copy(anniversaryTextBodies[index].position as any);
+        text!.quaternion.copy(anniversaryTextBodies[index].quaternion as any);
       });
 
       renderer.render(scene, camera);
@@ -559,6 +646,7 @@ export const THREEText = ({ answer }: PropsType) => {
       // ここで、経過時間に応じたアクションを行う
       // 例: durationに応じた何かの処理
       isClick = true;
+      clickCount += 1;
       fireNumber = 0;
       clickPosition = [
         (mouseCursolDisp.x * mouseCursolDisp.widthOnOrigin) / 2,
@@ -584,7 +672,6 @@ export const THREEText = ({ answer }: PropsType) => {
         clickPosition[1],
         clickPosition[2]
       );
-      // clickParticleFireMesh.rotation.x = (-90 * Math.PI) / 180;
       scene.add(clickParticleFireMesh);
       particleFireMeshs.push(clickParticleFireMesh);
       // FIRE_LIMIT_NUMBER個以上の火がある場合は、一番古い火を削除する
