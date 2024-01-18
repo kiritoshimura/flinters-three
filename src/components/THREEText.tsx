@@ -1,10 +1,7 @@
-"use client";
-import { NextPage } from "next";
 import { useEffect, useState } from "react";
 import * as THREE from "three";
 import { FontLoader } from "three/examples/jsm/loaders/FontLoader.js";
 import { TextGeometry } from "three/examples/jsm/geometries/TextGeometry.js";
-import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import * as CANNON from "cannon-es";
 // 型定義ファイルがないので、@ts-ignoreでエラーを無視する
 /* @ts-ignore */
@@ -19,7 +16,8 @@ type PropsType = {
 /** 生成するテキスト */
 const TEXT_POSITION = [0, 1, 10]; // 0番目は上書きするので意味がない
 const TEXT_INTERVAL_X = 2.5;
-const TEXT_INTERECTAL_COLOR = 0x8888ff;
+const TEXT_INTERECTAL_COLOR = 0x6666ff;
+const TEXT_GRADAITION_COLOR = 0x0b0b00;
 /** 火の色 */
 const FIRE_COLOR = 0x000099;
 /** 生成する火 */
@@ -33,7 +31,6 @@ const FIRE_MOUSE_RADIUS = 0.25;
 const FIRE_MOUSE_HEIGHT = 2;
 const FIRE_MOUSE_PARTICLE_COUNT = 300;
 const FIRE_MOUSE_POSITION = [0, 0, 20];
-const FIRE_MOUSE_LIMIT_NUMBER = 1;
 /** 初期である火 */
 const FIRE_INIT_RADIUS = 0.3;
 const FIRE_INIT_HEIGHT = 1;
@@ -81,7 +78,15 @@ export const THREEText = ({ answer }: PropsType) => {
   let textPointToPointConstraint: CANNON.PointToPointConstraint | null = null;
   let clickPosition = [0, 0, 0];
   let isClick = false;
-  let isMove = false;
+  let isMouseDown = false;
+  let isMouseUp = false;
+  let intersectsTextColors = Array.from(
+    { length: answer.length },
+    () => 0xffffff
+  );
+  let mouseUpTickCount = 0;
+  let mouseUpTickCountKeep = 0;
+  let cameraZoomZCount = 0;
 
   const fontLoader = async () => {
     const answerArray = answer.split("");
@@ -186,15 +191,6 @@ export const THREEText = ({ answer }: PropsType) => {
       world.addBody(textBody); // 世界に追加
     });
 
-    // *** 開発用 ***
-    // 軸とグリッドのヘルパー表示
-    // const axes = new THREE.AxesHelper(20);
-    // scene.add(axes);
-    // const gridHelper = new THREE.GridHelper(10, 5);
-    // scene.add(gridHelper);
-    // マウスでぐりぐりできるようにするプラグイン。開発中は便利である
-    // new OrbitControls(camera, renderer.domElement);
-
     // サイズ
     const sizes = {
       width: innerWidth,
@@ -207,6 +203,7 @@ export const THREEText = ({ answer }: PropsType) => {
       0.5,
       1000
     );
+
     camera.position.set(
       CAMERA_POSITION[0],
       CAMERA_POSITION[1],
@@ -267,7 +264,7 @@ export const THREEText = ({ answer }: PropsType) => {
       FIRE_MOUSE_POSITION[1],
       FIRE_MOUSE_POSITION[2]
     );
-    // mouseParticleFireMesh.rotation.x = (-90 * Math.PI) / 180;
+
     scene.add(mouseParticleFireMesh);
 
     // ** Mesh **
@@ -280,10 +277,7 @@ export const THREEText = ({ answer }: PropsType) => {
     );
     scene.add(mouseFirePointLight);
 
-    // TODO
-    // 環境光源を作成
-    // new THREE.AmbientLight(色, 光の強さ)
-    const light = new THREE.AmbientLight(0xffffff, 0.1);
+    const light = new THREE.AmbientLight(0xffffff, 0.3);
     scene.add(light);
 
     // 物理エンジンキューブ（クリックした時にでてくるやつ）
@@ -347,7 +341,12 @@ export const THREEText = ({ answer }: PropsType) => {
     const tick = () => {
       // fire
       const delta = clock.getDelta();
-      mouseParticleFireMesh.material.update(delta);
+
+      camera.position.set(
+        CAMERA_POSITION[0],
+        CAMERA_POSITION[1],
+        CAMERA_POSITION[2] - mouseUpTickCount / 10
+      );
 
       window.requestAnimationFrame(tick);
 
@@ -355,6 +354,89 @@ export const THREEText = ({ answer }: PropsType) => {
         world.removeConstraint(textPointToPointConstraint);
         textPointToPointConstraint = null;
       }
+
+      // mousedownの場合火を広げる
+      if (isMouseDown && mouseUpTickCount < 30) {
+        mouseUpTickCount += 1;
+        mouseUpTickCountKeep += 1;
+        const fireGeometry = new particleFire.Geometry(
+          FIRE_MOUSE_RADIUS * (1 + mouseUpTickCount / 20),
+          FIRE_MOUSE_HEIGHT * (1 + mouseUpTickCount / 20),
+          FIRE_MOUSE_PARTICLE_COUNT * (1 + mouseUpTickCount / 4)
+        ) as THREE.BufferGeometry;
+        mouseParticleFireMesh.geometry.copy(fireGeometry);
+      } else if (isMouseUp) {
+        if (mouseUpTickCount > 0) {
+          mouseUpTickCount < 6
+            ? (mouseUpTickCount = 0)
+            : (mouseUpTickCount -= 6);
+          const fireGeometry = new particleFire.Geometry(
+            FIRE_MOUSE_RADIUS * (1 + mouseUpTickCount / 20),
+            FIRE_MOUSE_HEIGHT * (1 + mouseUpTickCount / 20),
+            FIRE_MOUSE_PARTICLE_COUNT * (1 + mouseUpTickCount / 4)
+          ) as THREE.BufferGeometry;
+          mouseParticleFireMesh.geometry.copy(fireGeometry);
+        }
+
+        particleFireMeshs.forEach((particleFireMesh, index) => {
+          if (fireNumber >= fireNumberMax) {
+            scene.remove(particleFireMesh);
+            particleFireMesh.material.dispose();
+            particleFireMesh.geometry.dispose();
+            initParticleFireMeshs.splice(index, 1);
+          } else {
+            const fireGeometry = new particleFire.Geometry(
+              Math.round(
+                (FIRE_MOUSE_RADIUS +
+                  ((FIRE_RADIUS_END - FIRE_MOUSE_RADIUS) / fireNumberMax) *
+                    fireNumber) *
+                  (mouseUpTickCountKeep / 5) *
+                  100
+              ) / 100,
+              Math.round(
+                (FIRE_MOUSE_HEIGHT +
+                  ((FIRE_HEIGHT_END - FIRE_MOUSE_HEIGHT) / fireNumberMax) *
+                    fireNumber) *
+                  (mouseUpTickCountKeep / 5) *
+                  100
+              ) / 100,
+              Math.round(
+                (FIRE_MOUSE_PARTICLE_COUNT +
+                  ((FIRE_PARTICLE_COUNT_END - FIRE_MOUSE_PARTICLE_COUNT) /
+                    fireNumberMax) *
+                    fireNumber) *
+                  (mouseUpTickCountKeep / 2) *
+                  100
+              ) / 100
+            ) as THREE.BufferGeometry;
+            particleFireMesh.geometry.copy(fireGeometry);
+            particleFireMesh.material.update(delta);
+          }
+        });
+
+        firePointLights.forEach((firePointLight, index) => {
+          if (fireNumber >= fireNumberMax) {
+            scene.remove(firePointLight);
+            initParticleFireMeshs.splice(index, 1);
+          } else {
+            firePointLight.intensity =
+              Math.round(
+                (100 + fireNumber * 2) * (mouseUpTickCountKeep / 5) * 100
+              ) / 100;
+            firePointLight.distance =
+              Math.round(
+                (10 + fireNumber / 10) * (mouseUpTickCountKeep / 5) * 100
+              ) / 100;
+          }
+        });
+        if (fireNumber < fireNumberMax) {
+          fireNumber += 1;
+        } else {
+          fireNumber = 0;
+          mouseUpTickCountKeep = 0;
+        }
+      }
+      mouseParticleFireMesh.material.update(delta);
 
       //マウス位置からまっすぐに伸びる光線ベクトルを生成
       raycaster.setFromCamera(mouse, camera);
@@ -372,16 +454,21 @@ export const THREEText = ({ answer }: PropsType) => {
           if (textIndex !== null) {
             texts!.forEach((text, index) => {
               if (textIndex !== index) {
-                text!.material.color.setHex(0xffffff);
+                if (intersectsTextColors[index] < 0xffffff)
+                  intersectsTextColors[index] += TEXT_GRADAITION_COLOR;
+                text!.material.color.setHex(intersectsTextColors[index]);
               } else {
-                text!.material.color.setHex(TEXT_INTERECTAL_COLOR);
+                if (intersectsTextColors[index] >= TEXT_INTERECTAL_COLOR)
+                  intersectsTextColors[index] -= TEXT_GRADAITION_COLOR;
+                text!.material.color.setHex(intersectsTextColors[index]);
               }
             });
 
             if (isClick) {
               clickUpBody.position.set(
                 textBodies[textIndex].position.x,
-                textBodies[textIndex].position.y + 5,
+                textBodies[textIndex].position.y +
+                  5 * Math.round(mouseUpTickCountKeep / 4),
                 textBodies[textIndex].position.z
               );
 
@@ -392,7 +479,8 @@ export const THREEText = ({ answer }: PropsType) => {
               );
               const textPivotB = new CANNON.Vec3(
                 textBodies[textIndex].position.x,
-                textBodies[textIndex].position.y + 2.5,
+                textBodies[textIndex].position.y +
+                  2.5 * Math.round(mouseUpTickCountKeep / 4),
                 textBodies[textIndex].position.z
               );
               textPointToPointConstraint = new CANNON.PointToPointConstraint(
@@ -403,74 +491,19 @@ export const THREEText = ({ answer }: PropsType) => {
               );
               world.addConstraint(textPointToPointConstraint);
             }
-
-            // const clickApplyForce = new CANNON.Vec3();
-            // clickApplyForce.set(textObj.position.x + 1, 0, textObj.position.z);
-            // textBodies[textIndex].applyForce(
-            //   clickApplyForce,
-            //   textBodies[textIndex].position
-            // );
           }
         } else {
-          texts!.forEach((text) => {
-            text!.material.color.setHex(0xffffff);
+          texts!.forEach((text, index) => {
+            if (intersectsTextColors[index] < 0xffffff)
+              intersectsTextColors[index] += TEXT_GRADAITION_COLOR;
+            text!.material.color.setHex(intersectsTextColors[index]);
           });
         }
       }
       isClick = false;
-      // }
 
       // 物理エンジンの計算 物理エンジンは毎秒60回更新されます
       world.step(1 / 60);
-
-      // 物理エンジンでの位置と回転をThree.jsのオブジェクトに反映
-      if (fireNumber < fireNumberMax) {
-        fireNumber += 1;
-      }
-      particleFireMeshs.forEach((particleFireMesh, index) => {
-        if (fireNumber >= fireNumberMax) {
-          scene.remove(particleFireMesh);
-          particleFireMesh.material.dispose();
-          particleFireMesh.geometry.dispose();
-          initParticleFireMeshs.splice(index, 1);
-        } else {
-          const fireGeometry = new particleFire.Geometry(
-            FIRE_MOUSE_RADIUS +
-              ((FIRE_RADIUS_END - FIRE_MOUSE_RADIUS) / fireNumberMax) *
-                fireNumber,
-            FIRE_MOUSE_HEIGHT +
-              ((FIRE_HEIGHT_END - FIRE_MOUSE_HEIGHT) / fireNumberMax) *
-                fireNumber,
-            FIRE_MOUSE_PARTICLE_COUNT +
-              ((FIRE_PARTICLE_COUNT_END - FIRE_MOUSE_PARTICLE_COUNT) /
-                fireNumberMax) *
-                fireNumber
-          ) as THREE.BufferGeometry;
-          particleFireMesh.geometry.copy(fireGeometry);
-          particleFireMesh.material.update(delta);
-        }
-        // particleFireMesh.position.copy(
-        //   particleFireBodies[index].position as any
-        // );
-        // particleFireMesh.quaternion.copy(
-        //   particleFireBodies[index].quaternion as any
-        // );
-        // particleFireMesh.material.update(delta);
-      });
-
-      firePointLights.forEach((firePointLight, index) => {
-        if (fireNumber >= fireNumberMax) {
-          scene.remove(firePointLight);
-          initParticleFireMeshs.splice(index, 1);
-        } else {
-          firePointLight.intensity = 100 + fireNumber * 2;
-          firePointLight.distance = 10 + fireNumber / 10;
-        }
-        // firePointLight.position.copy(particleFireBodies[index].position as any);
-        // firePointLight.quaternion.copy(
-        //   particleFireBodies[index].quaternion as any
-        // );
-      });
 
       texts!.forEach((text, index) => {
         text!.position.copy(textBodies[index].position as any);
@@ -483,7 +516,6 @@ export const THREEText = ({ answer }: PropsType) => {
 
     //マウスイベントを登録
     canvas.addEventListener("mousemove", (event) => {
-      isMove = true;
       const aspRatio = sizes.width / sizes.height;
       // 3D空間の高さと幅
       const heightOnOrigin =
@@ -516,8 +548,16 @@ export const THREEText = ({ answer }: PropsType) => {
       mouse.y = mouseCursolDisp.y;
     });
 
-    //マウスイベントを登録
-    canvas.addEventListener("click", () => {
+    const onMouseDown = () => {
+      isMouseUp = false;
+      isMouseDown = true;
+    };
+
+    const onMouseUp = () => {
+      isMouseDown = false;
+      isMouseUp = true;
+      // ここで、経過時間に応じたアクションを行う
+      // 例: durationに応じた何かの処理
       isClick = true;
       fireNumber = 0;
       clickPosition = [
@@ -570,28 +610,11 @@ export const THREEText = ({ answer }: PropsType) => {
         scene.remove(firePointLights[0]);
         firePointLights.splice(0, 1);
       }
+    };
 
-      // -- 物理演算 --
-      // 物理エンジンキューブ（火）
-      // const clickParticleFireShape = new CANNON.Box(
-      //   new CANNON.Vec3(FIRE_RADIUS / 2, FIRE_HEIGHT / 4, FIRE_RADIUS / 2)
-      // );
-      // const clickParticleFireBody = new CANNON.Body({
-      //   mass: 1, // 質量
-      //   position: new CANNON.Vec3(
-      //     (mouseCursolDisp.x * mouseCursolDisp.widthOnOrigin) / 2,
-      //     (mouseCursolDisp.y * mouseCursolDisp.heightOnOrigin) / 2,
-      //     FIRE_POSITION[2]
-      //   ), // 初期位置
-      // });
-      // clickParticleFireBody.addShape(clickParticleFireShape); // 形状を追加
-      // world.addBody(clickParticleFireBody); // 世界に追加
-      // particleFireBodies.push(clickParticleFireBody);
-      // if (particleFireBodies.length > FIRE_LIMIT_NUMBER) {
-      //   world.removeBody(particleFireBodies[0]);
-      //   particleFireBodies.splice(0, 1);
-      // }
-    });
+    // イベントリスナーを追加
+    document.addEventListener("mousedown", onMouseDown);
+    document.addEventListener("mouseup", onMouseUp);
 
     // ブラウザのリサイズ処理
     window.addEventListener("resize", () => {
