@@ -194,9 +194,9 @@ export const THREEText = ({ answer }: PropsType) => {
       anivTexts.push(text);
 
       // 物理エンジンキューブ（文字）
-      const textShape = new CANNON.Box(new CANNON.Vec3(0.75, 1, 0.5));
+      const textShape = new CANNON.Box(new CANNON.Vec3(0.5, 1, 0.5));
       const textBody = new CANNON.Body({
-        mass: 1, // 質量
+        mass: 5, // 質量
         position: new CANNON.Vec3(
           textPosition[0],
           textPosition[1] + 50,
