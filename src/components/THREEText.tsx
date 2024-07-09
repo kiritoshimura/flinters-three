@@ -43,7 +43,7 @@ const FIRE_INIT_POSITION_DIFF = 20;
 /** カメラの視野角 */
 const CAMERA_FOV = 35;
 /** カメラの位置 */
-const CAMERA_POSITION = [0, 0, 50];
+const CAMERA_POSITION = [0, 0, 30];
 
 /** 最初にでてきた数字を取り出す正規表現 */
 const extractNumber = (str: string) => {
