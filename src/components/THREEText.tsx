@@ -16,10 +16,10 @@ type PropsType = {
 /** 生成するテキスト */
 const TEXT_POSITION = [0, 1, 10]; // 0番目は上書きするので意味がない
 const TEXT_INTERVAL_X = 2.5;
-const TEXT_INTERECTAL_COLOR = 0x6666ff;
-const TEXT_GRADAITION_COLOR = 0x0b0b00;
+const TEXT_INTERECTAL_COLOR = 0xff6666;
+const TEXT_GRADAITION_COLOR = 0x000b0b;
 /** 火の色 */
-const FIRE_COLOR = 0x000099;
+const FIRE_COLOR = 0xfc4343;
 /** 生成する火 */
 const FIRE_RADIUS_END = 2;
 const FIRE_HEIGHT_END = 3;
