@@ -211,7 +211,6 @@ export const THREEText = ({ answer }: PropsType) => {
       1000
     );
     CAMERA_POSITION[2] = cameraResizePosition(sizes.width);
-    console.log(sizes);
 
     camera.aspect = sizes.width / sizes.height;
     camera.updateProjectionMatrix();
