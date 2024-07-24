@@ -43,7 +43,7 @@ const FIRE_INIT_POSITION_DIFF = 20;
 /** カメラの視野角 */
 const CAMERA_FOV = 35;
 /** カメラの位置 */
-const CAMERA_POSITION = [0, 0, 30]; // 1920 x 1080
+let CAMERA_POSITION = [0, 0, 30]; // 1920 x 1080
 // const CAMERA_POSITION = [0, 0, 70]; // 390 x 844
 
 /** 最初にでてきた数字を取り出す正規表現 */
@@ -210,7 +210,7 @@ export const THREEText = ({ answer }: PropsType) => {
       0.5,
       1000
     );
-
+    CAMERA_POSITION[2] = cameraResizePosition(sizes.width);
     console.log(sizes);
 
     camera.aspect = sizes.width / sizes.height;
@@ -221,7 +221,7 @@ export const THREEText = ({ answer }: PropsType) => {
     camera.position.set(
       CAMERA_POSITION[0],
       CAMERA_POSITION[1],
-      cameraResizePosition(sizes.width)
+      CAMERA_POSITION[2]
     );
 
     // 原点を見る
