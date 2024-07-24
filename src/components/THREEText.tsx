@@ -43,7 +43,8 @@ const FIRE_INIT_POSITION_DIFF = 20;
 /** カメラの視野角 */
 const CAMERA_FOV = 35;
 /** カメラの位置 */
-const CAMERA_POSITION = [0, 0, 30];
+const CAMERA_POSITION = [0, 0, 30]; // 1920 x 1080
+// const CAMERA_POSITION = [0, 0, 70]; // 390 x 844
 
 /** 最初にでてきた数字を取り出す正規表現 */
 const extractNumber = (str: string) => {
@@ -51,8 +52,13 @@ const extractNumber = (str: string) => {
   return match ? parseInt(match[0], 10) : null;
 };
 
+// widthが1920の時にzが30、widthが390の時にzが70になるようになる１次関数
+const cameraResizePosition = (windowWidth: number) => {
+  return (-4 / 153) * windowWidth + 80.26;
+};
+
 export const THREEText = ({ answer }: PropsType) => {
-  let canvas: HTMLElement;
+  let canvas: HTMLCanvasElement;
   const [texts, setTexts] = useState<
     Array<THREE.Mesh<
       TextGeometry,
@@ -62,6 +68,8 @@ export const THREEText = ({ answer }: PropsType) => {
   >([]);
 
   const [textBodies, setTextBodies] = useState<Array<CANNON.Body>>([]);
+  const [rendererState, setRendererState] = useState<THREE.WebGLRenderer>();
+  const [cameraState, setCameraState] = useState<THREE.PerspectiveCamera>();
 
   /** クッリクした火のMesh */
   const particleFireMeshs: Array<THREE.Points<any, any>> = [];
@@ -140,7 +148,6 @@ export const THREEText = ({ answer }: PropsType) => {
           textPosition[2]
         ),
       });
-      // textBody.quaternion.setFromEuler((-90 * Math.PI) / 180, 0, 0);
       textBody.addShape(textShape); // 形状を追加
       mapTextBodies.push(textBody);
     });
@@ -153,15 +160,16 @@ export const THREEText = ({ answer }: PropsType) => {
     fontLoader();
   }, []);
 
+  // MARK: texts useEffect
   useEffect(() => {
     if (!texts) return;
     // canvasを取得
-    canvas = document.getElementById("canvas")!;
+    canvas = document.getElementById("canvas")! as HTMLCanvasElement;
     // シーン
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x000000);
 
-    // -- 物理演算 --
+    // MARK: 物理演算：初期化
     //Worldオブジェクトを作成して、物理世界を初期化
     const world = new CANNON.World();
     //(最適化)衝突判定のためのBroadphaseアルゴリズムを設定
@@ -179,14 +187,12 @@ export const THREEText = ({ answer }: PropsType) => {
       widthOnOrigin: 0,
     };
 
-    // ** Mesh **
-    // 文字の追加
+    // MARK: Mesh：文字
     texts!.forEach((text) => {
       scene.add(text!);
     });
 
-    // -- 物理演算 --
-    // 文字の追加
+    // MARK: 物理演算：文字
     textBodies!.forEach((textBody) => {
       world.addBody(textBody); // 世界に追加
     });
@@ -196,6 +202,7 @@ export const THREEText = ({ answer }: PropsType) => {
       width: innerWidth,
       height: innerHeight,
     };
+
     // カメラ
     const camera = new THREE.PerspectiveCamera(
       CAMERA_FOV,
@@ -204,10 +211,17 @@ export const THREEText = ({ answer }: PropsType) => {
       1000
     );
 
+    console.log(sizes);
+
+    camera.aspect = sizes.width / sizes.height;
+    camera.updateProjectionMatrix();
+
+    setCameraState(camera);
+
     camera.position.set(
       CAMERA_POSITION[0],
       CAMERA_POSITION[1],
-      CAMERA_POSITION[2]
+      cameraResizePosition(sizes.width)
     );
 
     // 原点を見る
@@ -218,7 +232,9 @@ export const THREEText = ({ answer }: PropsType) => {
       antialias: true,
       alpha: true,
     });
-    renderer.setSize(sizes.width - 1, sizes.height - 8);
+    setRendererState(renderer);
+
+    renderer.setSize(sizes.width, sizes.height);
     renderer.setPixelRatio(window.devicePixelRatio);
 
     // 平面
@@ -231,8 +247,7 @@ export const THREEText = ({ answer }: PropsType) => {
     plane.rotation.x += (-90 * Math.PI) / 180;
     scene.add(plane);
 
-    // -- 物理演算 --
-    //物理エンジン床
+    // MARK: 物理演算：床
     const groundShape = new CANNON.Plane(); // Plane形状は無限に広がる平面です
     const groundBody = new CANNON.Body({
       mass: 0, // 質量0は動かないオブジェクトを意味します
@@ -245,8 +260,7 @@ export const THREEText = ({ answer }: PropsType) => {
     );
     world.addBody(groundBody); // 世界に追加
 
-    // ** Mesh **
-    // マウスカーソルに追従する火
+    // MARK: Mesh：マウスカーソルに追従する火
     const height = window.innerHeight;
     const mouseFireGeometry = new particleFire.Geometry(
       FIRE_MOUSE_RADIUS,
@@ -267,8 +281,7 @@ export const THREEText = ({ answer }: PropsType) => {
 
     scene.add(mouseParticleFireMesh);
 
-    // ** Mesh **
-    // 点光源
+    // MARK: Mesh：点光源
     const mouseFirePointLight = new THREE.PointLight(0xffffff, 100, 10, 1.0);
     mouseFirePointLight.position.set(
       FIRE_MOUSE_POSITION[0],
@@ -289,8 +302,7 @@ export const THREEText = ({ answer }: PropsType) => {
     clickUpBody.addShape(clickUpShape);
     world.addBody(clickUpBody); // 世界に追加
 
-    // ** Mesh **
-    // 初期位置にある火
+    // MARK: Mesh：初期位置にある火
     const initParticleFireMeshs: Array<
       THREE.Points<THREE.BufferGeometry, any>
     > = Array.from({ length: FIRE_INIT_LENGTH }, (_, index) => {
@@ -316,8 +328,7 @@ export const THREEText = ({ answer }: PropsType) => {
           : index * FIRE_INIT_INTERVAL + FIRE_INIT_POSITION[2]
       );
       scene.add(initParticleFireMesh);
-      // ** Mesh **
-      // 点光源
+      // MARK: Mesh：点光源
       const initPointLight = new THREE.PointLight(0xffffff, 50, 10, 1.0);
       initPointLight.position.set(
         index >= FIRE_INIT_LENGTH / 2
@@ -334,18 +345,18 @@ export const THREEText = ({ answer }: PropsType) => {
       return initParticleFireMesh;
     });
 
-    // アニメーション
+    // MARK: アニメーション値
     const clock = new THREE.Clock();
     let fireNumber = 0;
     let fireNumberMax = 10;
+    // MARK: アニメーション関数
     const tick = () => {
-      // fire
       const delta = clock.getDelta();
 
       camera.position.set(
         CAMERA_POSITION[0],
         CAMERA_POSITION[1],
-        CAMERA_POSITION[2] - mouseUpTickCount / 10
+        cameraResizePosition(sizes.width) - mouseUpTickCount / 10
       );
 
       window.requestAnimationFrame(tick);
@@ -501,7 +512,6 @@ export const THREEText = ({ answer }: PropsType) => {
         }
       }
       isClick = false;
-      // }
 
       // 物理エンジンの計算 物理エンジンは毎秒60回更新されます
       world.step(1 / 60);
@@ -515,7 +525,7 @@ export const THREEText = ({ answer }: PropsType) => {
     };
     tick();
 
-    //マウスイベントを登録
+    //　MARK: マウスイベントを登録
     canvas.addEventListener("mousemove", (event) => {
       const aspRatio = sizes.width / sizes.height;
       // 3D空間の高さと幅
@@ -613,22 +623,25 @@ export const THREEText = ({ answer }: PropsType) => {
       }
     };
 
-    // イベントリスナーを追加
+    // MARK: イベントリスナーを追加
     document.addEventListener("mousedown", onMouseDown);
     document.addEventListener("mouseup", onMouseUp);
 
-    // ブラウザのリサイズ処理
+    // MARK: ブラウザのリサイズ処理
     window.addEventListener("resize", () => {
       sizes.width = window.innerWidth;
       sizes.height = window.innerHeight;
-      camera.aspect = sizes.width / sizes.height;
-      camera.updateProjectionMatrix();
       renderer.setSize(sizes.width, sizes.height);
       renderer.setPixelRatio(window.devicePixelRatio);
-      // fire
+      camera.aspect = sizes.width / sizes.height;
+      camera.updateProjectionMatrix();
+      // // fire
       mouseParticleFireMesh.material.setPerspective(camera.fov, height);
     });
   }, [texts]);
+
+  const [count, setCount] = useState(0);
+
   return (
     <div style={{ overflow: "hidden" }}>
       <canvas id="canvas"></canvas>
